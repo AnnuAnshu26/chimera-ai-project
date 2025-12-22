@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "i": "^0.3.7",
     "next": "16.0.3",
     "postcss": "^8.5.6",
     "react": "19.2.0",
