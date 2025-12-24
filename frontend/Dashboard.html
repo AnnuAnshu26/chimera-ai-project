@@ -1,954 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Project Chimera - Click-to-Simulate (Model A)</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Chimera - Click-to-Simulate (Model A)</title>
 
-    <!-- Leaflet CSS -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
-    />
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"
+  />
 
-    <!-- Heatmap plugin -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/leaflet.heat/dist/leaflet-heat.css"
-    />
+  <!-- Heatmap plugin -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/leaflet.heat/dist/leaflet-heat.css"
+  />
 
-    <!-- Tailwind CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CDN (OK for demo / hackathon) -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-    <style>
-      html,
-      body,
-      #map {
-        height: 100%;
-        margin: 0;
-      }
-      #map {
-        width: 100%;
-        border-radius: 6px;
-        border: 1px solid rgba(0, 191, 255, 0.4);
-        box-shadow: 0 0 15px rgba(0, 191, 255, 0.12);
-        min-height: 60vh;
-      }
-      .custom-marker {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        border: 2px solid #fff;
-        box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-      }
-      .red-marker {
-        background: #d10000;
-      }
-      .yellow-marker {
-        background: #ffff00;
-      }
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+    #map {
+      width: 100%;
+      min-height: 60vh;
+      border-radius: 6px;
+      border: 1px solid rgba(0,191,255,.4);
+      box-shadow: 0 0 15px rgba(0,191,255,.12);
+    }
+    .custom-marker {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 5px rgba(0,0,0,.5);
+    }
+    .red-marker { background:#d10000; }
+    .yellow-marker { background:#ffff00; }
+    .red-marker.blinking { animation:pulseRed 2s infinite; }
+    .yellow-marker.blinking { animation:pulseYellow 2s infinite; }
 
-      @keyframes pulseYellow {
-        0% {
-          box-shadow: 0 0 0 0 rgba(255, 255, 0, 0.7);
-        }
-        70% {
-          box-shadow: 0 0 0 20px rgba(255, 255, 0, 0);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(255, 255, 0, 0);
-        }
-      }
-      @keyframes pulseRed {
-        0% {
-          box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
-        }
-        70% {
-          box-shadow: 0 0 0 20px rgba(255, 0, 0, 0);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
-        }
-      }
-      .yellow-marker.blinking {
-        animation: pulseYellow 2s infinite;
-      }
-      .red-marker.blinking {
-        animation: pulseRed 2s infinite;
-      }
+    @keyframes pulseRed {
+      0% { box-shadow:0 0 0 0 rgba(255,0,0,.7); }
+      70% { box-shadow:0 0 0 20px rgba(255,0,0,0); }
+      100% { box-shadow:0 0 0 0 rgba(255,0,0,0); }
+    }
+    @keyframes pulseYellow {
+      0% { box-shadow:0 0 0 0 rgba(255,255,0,.7); }
+      70% { box-shadow:0 0 0 20px rgba(255,255,0,0); }
+      100% { box-shadow:0 0 0 0 rgba(255,255,0,0); }
+    }
+  </style>
+</head>
 
-      .slider {
-        appearance: none;
-        height: 6px;
-        background: #163852;
-        border-radius: 8px;
-        outline: none;
-        width: 100%;
-      }
-      .slider::-webkit-slider-thumb {
-        appearance: none;
-        width: 16px;
-        height: 16px;
-        background: #00bfff;
-        border-radius: 50%;
-        box-shadow: 0 0 6px rgba(0, 191, 255, 0.9);
-        cursor: pointer;
-        border: 2px solid #0a192f;
-      }
+<body class="bg-[#0a192f] text-white font-sans">
 
-      .panel {
-        background: rgba(10, 25, 47, 0.75);
-        border: 1px solid rgba(0, 191, 255, 0.12);
-        padding: 0.75rem;
-        border-radius: 8px;
-        color: #d7eaf8;
-      }
-      .small-muted {
-        color: #9fb7d7;
-        font-size: 0.9rem;
-      }
-      .click-marker {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: #00bfff;
-        border: 2px solid #fff;
-        box-shadow: 0 0 12px rgba(0, 191, 255, 0.8);
-      }
+<div class="p-4">
+  <h1 class="text-2xl font-bold mb-2">
+    Project Chimera — Click-to-Simulate (Model A)
+  </h1>
 
-      /* 🔥 HOLOGRAPHIC TOP ALERT BANNER */
-      #holo-alert {
-        position: fixed;
-        top: -90px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: min(900px, 90%);
-        z-index: 9999;
-        padding: 14px 18px;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 70, 70, 0.25);
-        background: rgba(255, 50, 50, 0.18);
-        backdrop-filter: blur(10px);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        color: white;
-        transition: top 0.45s cubic-bezier(0.2, 0.9, 0.2, 1);
-      }
-      #holo-alert.show {
-        top: 20px;
-      }
-      #holo-icon {
-        font-size: 22px;
-        margin-right: 8px;
-      }
+  <div class="flex gap-3 mb-3">
+    <button id="run-sim" class="px-4 py-2 bg-red-500 rounded font-semibold">
+      Run AI Prediction
+    </button>
+    <button id="play-btn" class="px-4 py-2 bg-sky-400 rounded font-semibold">
+      Play ▶
+    </button>
+    <button id="pause-btn" class="px-4 py-2 bg-gray-400 rounded font-semibold">
+      Pause ⏸
+    </button>
+  </div>
 
-      /* 🔔 TOAST NOTIFICATIONS */
-      #toast-container {
-        position: fixed;
-        right: 20px;
-        bottom: 20px;
-        z-index: 99999;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-      .toast {
-        width: 300px;
-        padding: 12px;
-        border-radius: 8px;
-        background: rgba(10, 20, 40, 0.95);
-        border: 1px solid rgba(0, 191, 255, 0.12);
-        color: white;
-        opacity: 0;
-        transform: translateX(40px);
-        transition: opacity 0.3s, transform 0.3s;
-      }
-      .toast.show {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    </style>
-  </head>
+  <div id="map"></div>
 
-  <body class="bg-[#0a192f] text-white font-sans">
-    <!-- 🔥 TOP HOLOGRAPHIC ALERT -->
-    <div id="holo-alert">
-      <div id="holo-icon">⚠️</div>
-      <div>
-        <div id="holo-title" class="font-bold text-sm">ALERT</div>
-        <div id="holo-body" class="text-xs opacity-90">Message text...</div>
-      </div>
-    </div>
+  <div class="mt-3">
+    <input id="timeline-slider" type="range" min="0" max="4" value="0" />
+    <span id="time-label">T0 — Idle</span>
+  </div>
 
-    <!-- 🔔 BOTTOM RIGHT TOAST CONTAINER -->
-    <div id="toast-container"></div>
+  <div class="mt-3">
+    <strong>Status:</strong>
+    <span id="message-box">Ready.</span>
+  </div>
 
-    <!-- 🔊 SOUND ALERT -->
-    <audio
-      id="alert-sound"
-      src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
-    ></audio>
-    <div class="p-4 pt-6">
-      <!-- HEADER -->
-      <div class="flex justify-between items-start mb-4">
-        <div>
-          <h1 class="text-2xl font-bold">
-            Project Chimera — Click-to-Simulate (Model A)
-          </h1>
-          <p class="text-sm text-gray-300">
-            Click anywhere to set origin → Run simulation
-          </p>
-        </div>
+  <pre id="action-plan-text" class="mt-2 text-xs bg-black/30 p-2 rounded">
+Run prediction to generate plan…
+  </pre>
 
-        <!-- Buttons -->
-        <div class="flex gap-3">
-          <button
-            id="run-sim"
-            class="px-4 py-2 bg-[#ff4d4d] rounded font-semibold shadow"
-          >
-            Run AI Prediction
-          </button>
-          <button
-            id="play-btn"
-            class="px-4 py-2 bg-[#00bfff] rounded font-semibold shadow"
-          >
-            Play ▶
-          </button>
-          <button
-            id="pause-btn"
-            class="px-4 py-2 bg-[#999] rounded font-semibold shadow"
-          >
-            Pause ⏸
-          </button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-[18rem,1fr,18rem] gap-4">
-        <!-- LEFT PANEL -->
-        <aside class="panel">
-          <h3 class="font-bold text-sm text-[#00bfff] mb-2">SYSTEM STATUS</h3>
-
-          <div id="message-box" class="mb-2">Ready.</div>
-
-          <div class="mb-3">
-            <strong class="text-xs text-[#a0c0E0]">Action Plan</strong>
-            <pre id="action-plan-text" class="text-xs mt-1">
-Run prediction to generate plan...</pre
-            >
-          </div>
-
-          <div>
-            <strong class="text-xs text-[#a0c0E0]">Affected Assets</strong>
-            <ul id="affected-assets-list" class="text-sm list-disc ml-5 mt-1">
-              <li>No assets yet</li>
-            </ul>
-          </div>
-        </aside>
-
-        <!-- CENTER PANEL -->
-        <main>
-          <!-- SEARCH BAR -->
-          <div class="w-full mb-3 flex items-center gap-2">
-            <input
-              id="asset-search"
-              type="text"
-              placeholder="Search assets..."
-              class="w-full p-2 rounded bg-[#0f2039] text-white border border-[#1a3a6a] focus:border-[#00bfff]"
-            />
-            <button
-              id="search-btn"
-              class="px-3 py-2 bg-[#00bfff] rounded text-black font-semibold"
-            >
-              Search
-            </button>
-          </div>
-
-          <!-- SEARCH RESULTS -->
-          <div
-            id="search-results"
-            class="hidden bg-[#0f2039] border border-[#1a3a6a] rounded p-2 max-h-40 overflow-y-auto mb-2"
-          ></div>
-
-          <!-- MAP -->
-          <div id="map"></div>
-
-          <!-- TIMELINE -->
-          <div class="mt-3 panel flex flex-col gap-2">
-            <div class="flex items-center gap-3">
-              <input
-                id="timeline-slider"
-                class="slider"
-                type="range"
-                min="0"
-                max="4"
-                step="1"
-                value="0"
-              />
-              <div id="time-label" class="text-sm">T0 — Idle</div>
-            </div>
-
-            <small class="text-gray-400"
-              >Drag slider or use Play to view disaster progression</small
-            >
-          </div>
-        </main>
-
-        <!-- RIGHT PANEL -->
-        <aside class="panel">
-          <h3 class="font-bold text-sm text-[#00bfff] mb-2">
-            LEGEND & CLICK-ORIGIN
-          </h3>
-
-          <!-- Legend -->
-          <div class="mb-3">
-            <div class="flex items-center gap-2">
-              <span class="w-3 h-3 inline-block bg-red-600"></span> Substation
-            </div>
-            <div class="flex items-center gap-2 mt-1">
-              <span class="w-3 h-3 inline-block bg-yellow-300"></span> Hospital
-            </div>
-          </div>
-
-          <!-- Click origin -->
-          <div id="click-info" class="mb-3">
-            <strong class="text-xs text-[#a0c0E0]">Click origin</strong>
-
-            <div id="click-coords" class="text-sm small-muted mt-1">
-              No origin selected. Click on the map to set origin.
-            </div>
-
-            <div id="click-nearest" class="text-sm mt-2"></div>
-
-            <div class="mt-3">
-              <button
-                id="run-click-sim"
-                class="px-3 py-2 bg-[#ffb300] rounded text-black font-semibold"
-              >
-                RUN SIMULATION HERE
-              </button>
-
-              <button
-                id="clear-click"
-                class="ml-2 px-2 py-1 bg-[#444] rounded text-white text-sm"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <!-- Evacuation Circle -->
-          <div>
-            <strong class="text-xs">Evacuation Priority</strong>
-            <div class="mt-2 w-full h-24 flex items-center justify-center">
-              <div
-                class="w-28 h-28 rounded-full bg-[conic-gradient(#ff4d4d_0deg_290deg,#0a192f_290deg_360deg)] flex items-center justify-center text-white font-bold"
-              >
-                HIGH
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </div>
-
-    <!-- Leaflet JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-    <script>
-      /* =========================================================================
-   GLOBAL STATE + MAP INITIALIZATION (WITH CINEMATIC FLY-IN)
-   ========================================================================= */
-
-      let map;
-      let markersLayer = L.layerGroup();
-      let heatmapLayer = null;
-      let clickMarker = null;
-      let lastClickPoint = null;
-      let lastNearestAssets = [];
-
-      function initMap() {
-        map = L.map("map", { zoomControl: false }).setView([20, 0], 2);
-
-        L.tileLayer(
-          "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-          { maxZoom: 20 }
-        ).addTo(map);
-
-        markersLayer.addTo(map);
-
-        // cinematic fly sequence
-        setTimeout(
-          () => map.flyTo([20.5937, 78.9629], 5, { duration: 4 }),
-          1000
-        );
-        setTimeout(
-          () => map.flyTo([28.6139, 77.209], 11, { duration: 3 }),
-          5500
-        );
-      }
-
-      initMap();
-
-      /* =========================================================================
-   ELEMENT BINDINGS
-   ========================================================================= */
-
-      const messageBox = document.getElementById("message-box");
-      const actionPlanText = document.getElementById("action-plan-text");
-      const affectedAssetsList = document.getElementById(
-        "affected-assets-list"
-      );
-
-      const runBtn = document.getElementById("run-sim");
-      const playBtn = document.getElementById("play-btn");
-      const pauseBtn = document.getElementById("pause-btn");
-
-      const slider = document.getElementById("timeline-slider");
-      const timeLabel = document.getElementById("time-label");
-
-      const searchInput = document.getElementById("asset-search");
-      const searchBtn = document.getElementById("search-btn");
-      const searchResults = document.getElementById("search-results");
-
-      const runClickSimBtn = document.getElementById("run-click-sim");
-      const clearClickBtn = document.getElementById("clear-click");
-      const clickCoordsDiv = document.getElementById("click-coords");
-      const clickNearestDiv = document.getElementById("click-nearest");
-
-      let allFailingAssets = [];
-      let timelineData = { t0: [], t1: [], t2: [], t3: [], t4: [] };
-      let currentStep = 0;
-      let playInterval = null;
-
-      /* =========================================================================
-   HAVERSINE DISTANCE
-   ========================================================================= */
-
-      function haversineKm(lat1, lon1, lat2, lon2) {
-        const R = 6371;
-        const toRad = (v) => (v * Math.PI) / 180;
-        const dLat = toRad(lat2 - lat1),
-          dLon = toRad(lon2 - lon1);
-        const a =
-          Math.sin(dLat / 2) ** 2 +
-          Math.cos(toRad(lat1)) *
-            Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      }
-
-      /* =========================================================================
-   ALERT SYSTEM — TOASTS + HOLOGRAPHIC BANNER + SOUND
-   ========================================================================= */
-
-      document.body.insertAdjacentHTML(
-        "beforeend",
-        `
-<div id="toast-container" style="
-    position: fixed; right: 18px; bottom: 22px; z-index: 9999;
-    display: flex; flex-direction: column; gap: 10px;">
+  <ul id="affected-assets-list" class="list-disc ml-6 mt-2">
+    <li>No assets yet</li>
+  </ul>
 </div>
 
-<div id="holo-alert" style="
-    position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
-    width: calc(100% - 40px); max-width: 900px;
-    background: rgba(255,50,50,0.12);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,80,80,0.3);
-    padding: 14px 18px; border-radius: 12px;
-    display: flex; gap: 12px; align-items: center;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
-    color: white; z-index: 9999;
-    transition: top 0.45s cubic-bezier(0.2,0.8,0.2,1);
-">
-  <div id="holo-icon" style="
-        width: 46px; height: 46px; border-radius: 10px;
-        background: rgba(255,100,100,0.9);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 20px; font-weight: bold;">
-  </div>
-  <div style="flex:1;">
-      <div id="holo-title" style="font-weight: bold; font-size: 15px;">Alert</div>
-      <div id="holo-body" style="font-size: 13px; opacity: 0.9;">Details</div>
-  </div>
-</div>
-
-<audio id="alert-sound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="></audio>
-`
-      );
-
-      const toastContainer = document.getElementById("toast-container");
-      const holoAlert = document.getElementById("holo-alert");
-      const holoTitle = document.getElementById("holo-title");
-      const holoBody = document.getElementById("holo-body");
-      const holoIcon = document.getElementById("holo-icon");
-      const alertSound = document.getElementById("alert-sound");
-
-      let soundEnabled = false;
-
-      /* --- Sound toggle added to Run button area --- */
-      document.getElementById("run-sim").insertAdjacentHTML(
-        "afterend",
-        `
-<button id="sound-toggle" class="px-3 py-2 bg-[#222] rounded text-white text-sm">
-🔔 Sound: OFF
-</button>
-`
-      );
-
-      document.getElementById("sound-toggle").onclick = () => {
-        soundEnabled = !soundEnabled;
-        document.getElementById("sound-toggle").innerText = soundEnabled
-          ? "🔔 Sound: ON"
-          : "🔕 Sound: OFF";
-      };
-
-      function playBeep() {
-        if (soundEnabled) {
-          alertSound.currentTime = 0;
-          alertSound.play();
-        }
-      }
-
-      /* -------------------------- Toast -------------------------- */
-      function pushToast({ level = "warning", title = "", body = "" }) {
-        const div = document.createElement("div");
-
-        div.style.cssText = `
-        background: rgba(15,25,40,0.95);
-        padding: 10px 12px;
-        border-radius: 10px;
-        width: 300px;
-        color: #d9f4ff;
-        border: 1px solid rgba(0,200,255,0.1);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-        transform: translateX(40px);
-        opacity: 0;
-        transition: all .3s ease;
-    `;
-
-        div.innerHTML = `
-        <div style="font-weight: bold; margin-bottom: 4px;">
-            ${level === "critical" ? "🚨 " : "⚠️ "}${title}
-        </div>
-        <div style="font-size: 13px;">${body}</div>
-    `;
-
-        toastContainer.appendChild(div);
-
-        setTimeout(() => {
-          div.style.transform = "translateX(0)";
-          div.style.opacity = "1";
-        }, 20);
-
-        playBeep();
-
-        setTimeout(() => {
-          div.style.opacity = "0";
-          div.style.transform = "translateX(40px)";
-          setTimeout(() => div.remove(), 300);
-        }, 4000);
-      }
-
-      /* -------------------------- Banner Alert -------------------------- */
-      let bannerTimeout = null;
-
-      function showBanner(severity, title, body, icon) {
-        holoTitle.innerText = title;
-        holoBody.innerText = body;
-        holoIcon.innerText = icon;
-
-        if (severity === "warning") {
-          holoAlert.style.borderColor = "rgba(255,255,0,0.3)";
-          holoAlert.style.background = "rgba(255,255,0,0.15)";
-        } else if (severity === "critical") {
-          holoAlert.style.borderColor = "rgba(255,50,50,0.4)";
-          holoAlert.style.background = "rgba(255,60,60,0.18)";
-        } else if (severity === "severe") {
-          holoAlert.style.borderColor = "rgba(255,0,0,0.6)";
-          holoAlert.style.background = "rgba(255,0,0,0.25)";
-        }
-
-        holoAlert.style.top = "20px";
-        playBeep();
-
-        if (bannerTimeout) clearTimeout(bannerTimeout);
-        bannerTimeout = setTimeout(() => {
-          holoAlert.style.top = "-100px";
-        }, 5000);
-      }
-
-      /* =========================================================================
-   MAP VISUAL HELPERS
-   ========================================================================= */
-
-      function clearVisuals() {
-        markersLayer.clearLayers();
-        if (heatmapLayer) map.removeLayer(heatmapLayer);
-        heatmapLayer = null;
-      }
-
-      function addMarker(lat, lon, cls, popup) {
-        const icon = L.divIcon({
-          className: `custom-marker ${cls}`,
-          iconSize: [20, 20],
-        });
-        const m = L.marker([lat, lon], { icon }).addTo(markersLayer);
-        if (popup) m.bindPopup(popup);
-      }
-
-      function drawHeatmap(assets, intense = false) {
-        if (heatmapLayer) map.removeLayer(heatmapLayer);
-
-        const pts = assets.map((a) => [
-          a.latitude,
-          a.longitude,
-          (a.asset_type === 1 ? 1.0 : 0.7) * (intense ? 1.3 : 1),
-        ]);
-
-        heatmapLayer = L.heatLayer(pts, {
-          radius: 35,
-          blur: 25,
-          minOpacity: 0.25,
-        });
-
-        heatmapLayer.addTo(map);
-      }
-
-      /* =========================================================================
-   BUILD TIMELINE FROM FAILING ASSETS
-   ========================================================================= */
-
-      function buildTimelineFromAssets(list) {
-        const subs = list.filter((x) => x.asset_type === 1);
-        const hos = list.filter((x) => x.asset_type === 0);
-
-        timelineData = { t0: subs, t1: [], t2: [], t3: [], t4: [] };
-
-        hos.forEach((h) => {
-          let minD = Infinity;
-          subs.forEach((s) => {
-            minD = Math.min(
-              minD,
-              haversineKm(h.latitude, h.longitude, s.latitude, s.longitude)
-            );
-          });
-
-          if (minD <= 5) timelineData.t1.push(h);
-          else if (minD <= 10) timelineData.t2.push(h);
-          else if (minD <= 15) timelineData.t3.push(h);
-          else timelineData.t4.push(h);
-        });
-
-        const all = [...subs, ...hos];
-        timelineData.t4 = [
-          ...new Map(all.map((a) => [a.asset_name, a])).values(),
-        ];
-      }
-
-      /* =========================================================================
-   RENDER TIMELINE STEP + TRIGGERS ALERTS
-   ========================================================================= */
-
-      function renderStep(step) {
-        currentStep = step;
-        slider.value = step;
-
-        const labels = [
-          "T0 — Substations",
-          "T1 — 0–5 km",
-          "T2 — 5–10 km",
-          "T3 — 10–15 km",
-          "T4 — Final",
-        ];
-
-        timeLabel.innerText = labels[step];
-        messageBox.innerText = `Rendering ${labels[step]}`;
-
-        let assets = [];
-
-        if (step == 0) assets = timelineData.t0;
-        if (step == 1) assets = [...timelineData.t0, ...timelineData.t1];
-        if (step == 2)
-          assets = [...timelineData.t0, ...timelineData.t1, ...timelineData.t2];
-        if (step == 3)
-          assets = [
-            ...timelineData.t0,
-            ...timelineData.t1,
-            ...timelineData.t2,
-            ...timelineData.t3,
-          ];
-        if (step == 4) assets = timelineData.t4;
-
-        clearVisuals();
-        if (assets.length) drawHeatmap(assets, step >= 3);
-
-        assets.forEach((a) => {
-          const cls =
-            a.asset_type === 1
-              ? "red-marker blinking"
-              : "yellow-marker blinking";
-          addMarker(a.latitude, a.longitude, cls, `<b>${a.asset_name}</b>`);
-        });
-
-        affectedAssetsList.innerHTML = "";
-        assets.forEach(
-          (a) => (affectedAssetsList.innerHTML += `<li>${a.asset_name}</li>`)
-        );
-
-        const hospitalCount = assets.filter((a) => a.asset_type === 0).length;
-
-        /* --- ALERT LOGIC --- */
-        if (step === 1 && assets.length > 5) {
-          showBanner(
-            "warning",
-            "⚠️ Multiple Failures Detected",
-            `${assets.length} assets affected`,
-            "⚠️"
-          );
-          pushToast({
-            title: "Warning Zone Reached",
-            body: `${assets.length} assets impacted`,
-          });
-        }
-
-        if (step === 2 && hospitalCount >= 2) {
-          showBanner(
-            "critical",
-            "🚨 Hospital Cascade Detected",
-            `${hospitalCount} hospitals at risk`,
-            "🚨"
-          );
-          pushToast({
-            level: "critical",
-            title: "Hospital Risk",
-            body: `${hospitalCount} hospitals affected`,
-          });
-        }
-
-        if (step === 4 && assets.length > 15) {
-          showBanner(
-            "severe",
-            "🔥 Severe Multi-System Failure",
-            `${assets.length} total assets impacted`,
-            "🔥"
-          );
-          pushToast({
-            level: "critical",
-            title: "Severe System Failure",
-            body: "More than 15 assets compromised!",
-          });
-        }
-      }
-
-      /* =========================================================================
-   PLAY / PAUSE TIMELINE
-   ========================================================================= */
-
-      function playTimeline(speed = 1500) {
-        if (playInterval) return;
-        let s = currentStep;
-
-        playInterval = setInterval(() => {
-          renderStep(s);
-          s++;
-
-          if (s > 4) {
-            clearInterval(playInterval);
-            playInterval = null;
-          }
-        }, speed);
-      }
-
-      function pauseTimeline() {
-        if (playInterval) {
-          clearInterval(playInterval);
-          playInterval = null;
-        }
-      }
-
-      /* =========================================================================
-   SEARCH SYSTEM
-   ========================================================================= */
-
-      function highlightAsset(a) {
-        map.flyTo([a.latitude, a.longitude], 15, { duration: 1 });
-        L.popup()
-          .setLatLng([a.latitude, a.longitude])
-          .setContent(`<b>${a.asset_name}</b>`)
-          .openOn(map);
-      }
-
-      function searchAssets() {
-        const q = searchInput.value.toLowerCase().trim();
-
-        if (!q) {
-          searchResults.classList.add("hidden");
-          return;
-        }
-
-        const matches = allFailingAssets.filter((a) =>
-          a.asset_name.toLowerCase().includes(q)
-        );
-
-        searchResults.classList.remove("hidden");
-        searchResults.innerHTML = "";
-
-        if (matches.length === 0) {
-          searchResults.innerHTML = `<div class="p-2 text-gray-300">No results</div>`;
-          return;
-        }
-
-        matches.forEach((a) => {
-          const div = document.createElement("div");
-          div.className = "p-2 hover:bg-[#11263f] cursor-pointer";
-          div.innerText = a.asset_name;
-          div.onclick = () => {
-            highlightAsset(a);
-            searchResults.classList.add("hidden");
-          };
-          searchResults.appendChild(div);
-        });
-      }
-
-      searchInput.oninput = searchAssets;
-      searchBtn.onclick = searchAssets;
-
-      /* =========================================================================
-   MAP CLICK → SET ORIGIN
-   ========================================================================= */
-
-      map.on("click", (e) => {
-        if (clickMarker) map.removeLayer(clickMarker);
-
-        const lat = e.latlng.lat;
-        const lng = e.latlng.lng;
-
-        lastClickPoint = { lat, lng };
-
-        clickMarker = L.circleMarker([lat, lng], {
-          radius: 8,
-          color: "#00bfff",
-          fillColor: "#00bfff",
-          fillOpacity: 1,
-          weight: 2,
-        }).addTo(map);
-
-        clickCoordsDiv.innerHTML = `<strong>Lat:</strong> ${lat.toFixed(
-          5
-        )}, <strong>Lng:</strong> ${lng.toFixed(5)}`;
-
-        if (!allFailingAssets.length) {
-          clickNearestDiv.innerHTML = "Run prediction first.";
-          return;
-        }
-
-        const nearest = allFailingAssets
-          .map((a) => ({
-            ...a,
-            d: haversineKm(lat, lng, a.latitude, a.longitude),
-          }))
-          .sort((x, y) => x.d - y.d)
-          .slice(0, 5);
-
-        clickNearestDiv.innerHTML =
-          "<strong>Nearest assets:</strong><br>" +
-          nearest
-            .map((a) => `${a.asset_name} — ${a.d.toFixed(2)} km`)
-            .join("<br>");
-      });
-
-      /* Clear click origin */
-      clearClickBtn.onclick = () => {
-        if (clickMarker) map.removeLayer(clickMarker);
-        clickMarker = null;
-        lastClickPoint = null;
-        clickCoordsDiv.innerText = "No origin selected.";
-        clickNearestDiv.innerHTML = "";
-      };
-
-      /* =========================================================================
-   RUN PREDICTION (Option A + Click Origin)
-   ========================================================================= */
-
-      function runPredictionWithCoords(lat = null, lng = null) {
-        pauseTimeline();
-        clearVisuals();
-
-        messageBox.innerText = "Contacting AI backend...";
-        actionPlanText.innerText = "Generating plan...";
-        affectedAssetsList.innerHTML = "<li>Analyzing...</li>";
-
-        const payload =
-          lat !== null ? { lat, lng } : { lat: 28.6139, lng: 77.209 }; // default Delhi
-
-        fetch("http://127.0.0.1:5000/api/predict-failure", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        })
-          .then((r) => r.json())
-          .then((data) => {
-            try {
-              allFailingAssets = JSON.parse(data.failing_assets || "[]");
-            } catch {
-              allFailingAssets = [];
-            }
-
-            actionPlanText.innerText = data.action_plan || "No plan";
-
-            buildTimelineFromAssets(allFailingAssets);
-
-            renderStep(0);
-            setTimeout(() => playTimeline(), 600);
-
-            messageBox.innerText = `${allFailingAssets.length} assets detected.`;
-
-            pushToast({
-              title: "Simulation Ready",
-              body: `${allFailingAssets.length} assets identified.`,
-            });
-          })
-          .catch((err) => {
-            console.error(err);
-            messageBox.innerText = "Backend error!";
-          });
-      }
-
-      /* =========================================================================
-   BUTTON ACTIONS
-   ========================================================================= */
-
-      runBtn.onclick = () => {
-        if (lastClickPoint)
-          runPredictionWithCoords(lastClickPoint.lat, lastClickPoint.lng);
-        else runPredictionWithCoords();
-      };
-
-      runClickSimBtn.onclick = () => {
-        if (!lastClickPoint) return alert("Click on map first.");
-        runPredictionWithCoords(lastClickPoint.lat, lastClickPoint.lng);
-      };
-
-      playBtn.onclick = () => {
-        if (currentStep >= 4) renderStep(0);
-        playTimeline();
-      };
-
-      pauseBtn.onclick = pauseTimeline;
-
-      slider.addEventListener("input", (e) => {
-        pauseTimeline();
-        renderStep(Number(e.target.value));
-      });
-
-      /* =========================================================================
-   INITIAL START
-   ========================================================================= */
-
-      renderStep(0);
-    </script>
-  </body>
+<!-- JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+<script>
+/* ================= MAP INIT ================= */
+let map = L.map("map").setView([20.5937, 78.9629], 5);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png").addTo(map);
+
+let markersLayer = L.layerGroup().addTo(map);
+let heatmapLayer = null;
+let allFailingAssets = [];
+let currentStep = 0;
+
+/* ================= HELPERS ================= */
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat/2)**2 +
+    Math.cos(lat1*Math.PI/180) *
+    Math.cos(lat2*Math.PI/180) *
+    Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+/* ================= API CALL (FIXED) ================= */
+function runPrediction(lat=null, lng=null) {
+  document.getElementById("message-box").innerText = "Contacting AI backend…";
+  document.getElementById("affected-assets-list").innerHTML = "<li>Analyzing…</li>";
+
+  const payload = lat ? { lat, lng } : { lat: 28.6139, lng: 77.209 };
+
+  fetch("/api/predict-failure", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    allFailingAssets = JSON.parse(data.failing_assets || "[]");
+    document.getElementById("action-plan-text").innerText = data.action_plan;
+    document.getElementById("message-box").innerText =
+      allFailingAssets.length + " assets detected.";
+
+    markersLayer.clearLayers();
+    allFailingAssets.forEach(a => {
+      const cls = a.asset_type === 1 ? "red-marker blinking" : "yellow-marker blinking";
+      L.marker([a.latitude, a.longitude], {
+        icon: L.divIcon({ className: "custom-marker " + cls })
+      }).addTo(markersLayer);
+    });
+  })
+  .catch(err => {
+    console.error(err);
+    document.getElementById("message-box").innerText = "Backend error!";
+  });
+}
+
+/* ================= EVENTS ================= */
+document.getElementById("run-sim").onclick = () => runPrediction();
+</script>
+
+</body>
 </html>
