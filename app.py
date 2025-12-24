@@ -6,11 +6,9 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from haversine import haversine, Unit
 
-# --- 1. SETUP & LOAD MODELS ---
 app = Flask(__name__, static_folder='frontend')
 CORS(app)
 
-# Load the Scikit-learn (Random Forest) model and assets
 try:
     model = joblib.load('chimera_model.pkl')
     all_assets_df = pd.read_csv('master_assets.csv')
@@ -23,7 +21,6 @@ except FileNotFoundError:
     all_assets_df = pd.DataFrame()
     MODEL_COLUMNS = []
 
-# --- 2. DUMMY ACTION PLAN ---
 def get_dummy_action_plan(direct_failures, cascade_failures, clicked_point=None, radius_km=None):
     origin_text = ""
     if clicked_point:
@@ -38,7 +35,6 @@ AI Simulation Complete{origin_text}{radius_text}. {len(direct_failures) + len(ca
 """
     return plan
 
-# --- 3. PREDICTION API (supports clicked origin and radius) ---
 @app.route("/api/predict-failure", methods=['POST'])
 def predict_failure():
     """
@@ -138,4 +134,8 @@ def serve_dashboard():
 
 if __name__ == '__main__':
     print("🚀 Starting Flask server (Resume-Ready Plan - NO GEMINI)...")
-    app.run(debug=True, port=5000)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False
+    )
